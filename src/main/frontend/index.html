@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Smart Plant Watering Scheduler</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+    <style>
+        :root{
+          --bg:#0d1f0f;--surface:#122614;--surface2:#1a3320;
+          --border:#2a5530;--accent:#4ade80;--accent2:#86efac;
+          --accent3:#fbbf24;--accent4:#f87171;
+          --text:#dcfce7;--text3:#6b7280;
+          --cactus:#84cc16;--flower:#f472b6;--herb:#34d399;
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;min-height:100vh}
+        body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+          background:radial-gradient(ellipse 80% 60% at 10% 90%,rgba(74,222,128,.04) 0%,transparent 60%),
+                     radial-gradient(ellipse 60% 40% at 90% 10%,rgba(134,239,172,.03) 0%,transparent 60%)}
+        header{padding:18px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;position:relative;z-index:10;justify-content:space-between}
+        .header-left{display:flex;align-items:center;gap:14px}
+        header h1{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--accent)}
+        header p{color:var(--text3);font-size:.66rem;margin-top:2px}
+        .authors{font-size:.64rem;color:var(--text3);text-align:right;line-height:1.6}
+        .authors span{color:var(--accent2);display:block}
+        .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 28px;overflow-x:auto}
+        .tab{padding:12px 18px;cursor:pointer;font-size:.67rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+        .tab:hover{color:var(--accent2)}
+        .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+        .panel{display:none;padding:22px 28px;animation:fi .25s ease}
+        .panel.active{display:block}
+        @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+        .sec{font-family:'Playfair Display',serif;font-size:1rem;color:var(--accent2);margin-bottom:12px}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px}
+        .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+        label{display:block;font-size:.63rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+        input,select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Space Mono',monospace;font-size:.76rem;padding:7px 10px;outline:none;transition:border-color .2s}
+        input:focus,select:focus{border-color:var(--accent)}
+        input[type=range]{padding:3px 0;background:none;border:none;cursor:pointer}
+        button{background:var(--accent);color:var(--bg);border:none;border-radius:4px;font-family:'Space Mono',monospace;font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:9px 16px;cursor:pointer;transition:all .2s;white-space:nowrap}
+        button:hover{background:var(--accent2);transform:translateY(-1px)}button:disabled{background:var(--surface2);color:var(--text3);transform:none;cursor:not-allowed}
+        button.sec-btn{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+        button.sec-btn:hover{background:rgba(74,222,128,.08)}
+        button.del{background:var(--accent4);color:#fff}
+        button.del:hover{background:#ef4444}
+        .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.59rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+        .bw{background:rgba(74,222,128,.18);color:var(--accent);border:1px solid var(--accent)}
+        .bnw{background:rgba(107,114,128,.18);color:var(--text3);border:1px solid #374151}
+        .bc{background:rgba(132,204,22,.18);color:var(--cactus);border:1px solid var(--cactus)}
+        .bf{background:rgba(244,114,182,.18);color:var(--flower);border:1px solid var(--flower)}
+        .bh{background:rgba(52,211,153,.18);color:var(--herb);border:1px solid var(--herb)}
+        #gardenCanvas{border:1px solid var(--border);border-radius:8px;cursor:crosshair;display:block;background:var(--bg);width:100%}
+        table{width:100%;border-collapse:collapse;font-size:.72rem}
+        th{color:var(--text3);font-size:.59rem;letter-spacing:.11em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+        td{padding:8px 10px;border-bottom:1px solid rgba(42,85,48,.35)}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:rgba(74,222,128,.025)}
+        canvas.chart{border:1px solid var(--border);border-radius:6px;background:var(--bg);width:100%;display:block}
+        .log{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 13px;font-size:.66rem;color:var(--accent2);max-height:190px;overflow-y:auto;font-family:'Space Mono',monospace;line-height:1.75}
+        .li{color:var(--accent2)}.lw{color:var(--accent3)}.le{color:var(--accent4)}
+        .srow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+        .sbox{flex:1;min-width:85px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:11px 13px;text-align:center}
+        .sbox .v{font-size:1.45rem;font-family:'Playfair Display',serif;color:var(--accent)}
+        .sbox .l{font-size:.57rem;color:var(--text3);letter-spacing:.11em;text-transform:uppercase;margin-top:1px}
+        .worder{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+        .ochip{background:var(--surface2);border:1px solid var(--accent);border-radius:4px;padding:5px 10px;font-size:.67rem;display:flex;align-items:center;gap:5px}
+        .ochip .n{color:var(--accent3);font-weight:700}
+        .predr{padding:11px;border-radius:6px;margin-top:9px;font-size:.76rem;display:none}
+        .predr.yes{background:rgba(74,222,128,.13);border:1px solid var(--accent);color:var(--accent)}
+        .predr.no{background:rgba(107,114,128,.09);border:1px solid var(--text3);color:var(--text3)}
+        .fr{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+        .wlive{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 13px}
+        .wrow{display:flex;gap:9px;margin:4px 0;align-items:center}
+        .wlbl{color:var(--text3);min-width:115px;font-size:.62rem}
+        .wbar{flex:1;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative}.wbar::after{content:"";position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.2)}
+        .wfill{height:100%;border-radius:4px;transition:width .3s,background .3s;position:absolute;top:0}
+        .wval{min-width:72px;text-align:right;color:var(--accent3);font-size:.63rem}
+        .sabox{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 13px;font-size:.66rem;line-height:1.8;min-height:70px;max-height:220px;overflow-y:auto;font-family:'Space Mono',monospace}
+        .sl{padding:2px 6px;border-radius:3px;margin:1px 0;display:flex;gap:9px}
+        .sl.imp{color:var(--accent);border-left:2px solid var(--accent)}
+        .sl.prb{color:var(--accent3);border-left:2px solid var(--accent3)}
+        .sl.rej{color:var(--text3);border-left:2px solid #374151;opacity:.65}
+        .formula-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:11px 15px;margin-bottom:12px;font-size:.71rem;color:var(--accent2)}
+        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+        @media(max-width:700px){.g2,.g3{grid-template-columns:1fr}.tabs{padding:0 10px}.panel{padding:14px}}
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <span style="font-size:2rem">🌿</span>
+        <div>
+            <h1>Smart Plant Watering Scheduler</h1>
+            <p>Perceptron Classifier + Simulated Annealing Optimizer</p>
+        </div>
+    </div>
+    <div class="authors">
+        <span>Hamdi Qasas</span>
+        <span>Mohammad Khalil</span>
+    </div>
+</header>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('data')">① Data</div>
+    <div class="tab" onclick="switchTab('perceptron')">② Perceptron</div>
+    <div class="tab" onclick="switchTab('garden')">③ Garden</div>
+    <div class="tab" onclick="switchTab('optimizer')">④ S.A. Optimizer</div>
+    <div class="tab" onclick="switchTab('results')">⑤ Results</div>
+</div>
+
+
+<div id="tab-data" class="panel active">
+    <h2 class="sec">Training Dataset</h2>
+    <div class="srow" id="dataStats"></div>
+    <div class="card" style="overflow-x:auto">
+        <table>
+            <thead><tr><th>#</th><th>Soil Moisture</th><th>Last Watered (h)</th><th>Plant Type</th><th>Needs Water</th></tr></thead>
+            <tbody id="dataBody"></tbody>
+        </table>
+    </div>
+    <button onclick="switchTab('perceptron')">Next: Train Perceptron →</button>
+</div>
+
+
+<div id="tab-perceptron" class="panel">
+    <h2 class="sec">Perceptron Training</h2>
+    <div class="formula-box">
+        <strong>Net input:</strong> &nbsp; X = x₁·W₁ + x₂·W₂ + x₃·W₃ − θ &nbsp;&nbsp;&nbsp;
+        <strong>Output:</strong> &nbsp; ŷ = (X ≥ 0) ? 1 : 0
+        <br/><strong>Update:</strong> &nbsp; Wᵢ ← Wᵢ + α·(y − ŷ)·xᵢ
+    </div>
+
+    <div class="g2">
+        <div class="card">
+            <label>Learning Rate (α) — 0 to 1</label>
+            <input type="range" id="lr" min="0.01" max="1.0" step="0.01" value="0.1"
+                   oninput="document.getElementById('lrV').textContent=parseFloat(this.value).toFixed(2)"/>
+            <div style="color:var(--accent3);font-size:.77rem;margin-top:3px">α = <span id="lrV">0.10</span></div>
+            <br/>
+            <label>Max Epochs</label>
+            <input type="range" id="epochs" min="1" max="500" step="1" value="100"
+                   oninput="document.getElementById('epochsV').textContent=this.value"/>
+            <div style="color:var(--accent3);font-size:.77rem;margin-top:3px">Epochs: <span id="epochsV">100</span></div>
+            <br/>
+            <label>Train / Test Split</label>
+            <input type="range" id="splitR" min="0.5" max="0.9" step="0.05" value="0.8"
+                   oninput="document.getElementById('splitV').textContent=Math.round(this.value*100)+'% / '+Math.round((1-this.value)*100)+'%'"/>
+            <div style="color:var(--accent3);font-size:.77rem;margin-top:3px"><span id="splitV">80% / 20%</span></div>
+            <br/>
+            <div style="font-size:.63rem;color:var(--text3);margin-bottom:8px">
+                Weights and threshold start random in [−0.5, 0.5]
+            </div>
+            <button onclick="trainPerceptron()" style="width:100%">▶ Train Perceptron</button>
+            <div id="trainStats" class="srow" style="margin-top:12px"></div>
+        </div>
+        <div class="card">
+            <div style="font-size:.65rem;color:var(--text3);margin-bottom:6px">Loss and accuracy</div>
+            <canvas id="lossChart" class="chart" height="170"></canvas>
+            <div style="font-size:.65rem;color:var(--text3);margin-top:11px;margin-bottom:5px">Weight changes over epochs</div>
+            <canvas id="wgtChart" class="chart" height="120"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:.65rem;color:var(--text3);margin-bottom:8px">Weight values (updated each epoch)</div>
+        <div class="wlive">
+            <div class="wrow"><span class="wlbl">W₁ (moisture)</span><div class="wbar"><div class="wfill" id="wb1" style="width:50%;left:0;background:var(--accent)"></div></div><span class="wval" id="wv1">—</span></div>
+            <div class="wrow"><span class="wlbl">W₂ (last watered)</span><div class="wbar"><div class="wfill" id="wb2" style="width:50%;left:0;background:var(--accent3)"></div></div><span class="wval" id="wv2">—</span></div>
+            <div class="wrow"><span class="wlbl">W₃ (plant type)</span><div class="wbar"><div class="wfill" id="wb3" style="width:50%;left:0;background:var(--herb)"></div></div><span class="wval" id="wv3">—</span></div>
+            <div class="wrow"><span class="wlbl">θ (threshold)</span><div class="wbar"><div class="wfill" id="wb4" style="width:50%;left:0;background:var(--flower)"></div></div><span class="wval" id="wv4">—</span></div>
+            <div id="epochLbl" style="color:var(--text3);font-size:.61rem;margin-top:5px">not trained yet</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:.65rem;color:var(--text3);margin-bottom:6px">Training log</div>
+        <div class="log" id="trainLog"></div>
+    </div>
+
+    <div class="card">
+        <div class="sec" style="font-size:.88rem">Test the Perceptron</div>
+        <div class="g3">
+            <div><label>Soil Moisture (0–100)</label><input type="number" id="tM" min="0" max="100" value="21"/></div>
+            <div><label>Last Watered (h, 0–48)</label><input type="number" id="tL" min="0" max="48" value="8"/></div>
+            <div><label>Plant Type</label>
+                <select id="tP">
+                    <option value="0">0 – Cactus</option>
+                    <option value="1">1 – Flower</option>
+                    <option value="2" selected>2 – Herb</option>
+                </select>
+            </div>
+        </div>
+        <br/><button onclick="testPerceptron()">Predict</button>
+        <div id="predR" class="predr"></div>
+    </div>
+</div>
+
+
+<div id="tab-garden" class="panel">
+    <h2 class="sec">Garden Layout</h2>
+    <div class="g2">
+        <div>
+            <div class="card">
+                <div style="font-size:.66rem;color:var(--text3);margin-bottom:7px">Click anywhere on the canvas to place a plant, fill in its details, then hit Add Plant.</div>
+                <canvas id="gardenCanvas" height="380"></canvas>
+            </div>
+        </div>
+        <div>
+            <div class="card">
+                <div class="sec" style="font-size:.87rem">Add Plant</div>
+                <div class="g2">
+                    <div><label>X Position</label><input type="number" id="pX" value="100" min="0" max="600"/></div>
+                    <div><label>Y Position</label><input type="number" id="pY" value="100" min="0" max="380"/></div>
+                </div>
+                <br/>
+                <div class="g3">
+                    <div><label>Soil Moisture</label><input type="number" id="pM" min="0" max="100" value="30"/></div>
+                    <div><label>Last Watered (h)</label><input type="number" id="pL" min="0" max="48" value="20"/></div>
+                    <div><label>Plant Type</label>
+                        <select id="pT">
+                            <option value="0">Cactus</option>
+                            <option value="1">Flower</option>
+                            <option value="2">Herb</option>
+                        </select>
+                    </div>
+                </div>
+                <br/>
+                <div class="fr">
+                    <button id="addPlantBtn" onclick="addPlant()">+ Add Plant</button>
+                    <button class="sec-btn" onclick="clearGarden()">Clear All</button>
+                    <button class="sec-btn" onclick="loadSample()">Load Sample</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="font-size:.65rem;color:var(--text3);margin-bottom:7px">Number of plants to water (SA will find the optimal order for exactly this many)</div>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:130px">
+                        <label>Plants to Water</label>
+                        <input type="number" id="nWater" min="1" value="3" style="width:100%"/>
+                    </div>
+                    <div style="font-size:.63rem;color:var(--text3);flex:1">SA will find the best ordering for this many plants.</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="font-size:.65rem;color:var(--text3);margin-bottom:7px">Plants in Garden (<span id="pCount">0</span>)</div>
+                <div style="max-height:200px;overflow-y:auto">
+                    <table>
+                        <thead><tr><th>Name</th><th>Type</th><th>Moisture</th><th>Needs Water?</th><th></th></tr></thead>
+                        <tbody id="plantList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="tab-optimizer" class="panel">
+    <h2 class="sec">Simulated Annealing Optimizer</h2>
+    <div class="formula-box">
+        <strong>Cost</strong> = plants_missed + total_distance_walked + extra_watered
+        <br/><small style="color:var(--text3)">
+        plants_missed = predicted "needs water" plants NOT in the chosen sequence &nbsp;|&nbsp;
+        extra_watered = plants in sequence predicted "no water needed"
+    </small>
+    </div>
+
+    <div class="g2">
+        <div class="card">
+            <label>Initial Temperature (T₀)</label>
+            <input type="range" id="saT" min="10" max="1000" step="10" value="200"
+                   oninput="document.getElementById('saTv').textContent=this.value"/>
+            <div style="color:var(--accent3);font-size:.77rem;margin-top:3px">T₀ = <span id="saTv">200</span></div><br/>
+
+            <label>Cooling Rate (α)</label>
+            <input type="range" id="saC" min="0.85" max="0.999" step="0.001" value="0.97"
+                   oninput="document.getElementById('saCv').textContent=parseFloat(this.value).toFixed(3)"/>
+            <div style="color:var(--accent3);font-size:.77rem;margin-top:3px">α = <span id="saCv">0.970</span></div><br/>
+
+            <label>Max Iterations</label>
+            <input type="range" id="saI" min="100" max="3000" step="100" value="1000"
+                   oninput="document.getElementById('saIv').textContent=this.value"/>
+            <div style="color:var(--accent3);font-size:.77rem;margin-top:3px">Iters: <span id="saIv">1000</span></div><br/><br/>
+
+            <button onclick="runSA()" style="width:100%">▶ Run Simulated Annealing</button>
+        </div>
+        <div class="card">
+            <div style="font-size:.65rem;color:var(--text3);margin-bottom:6px">Cost over iterations</div>
+            <canvas id="saChart" class="chart" height="200"></canvas>
+            <div id="saStats" class="srow" style="margin-top:11px"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:.65rem;color:var(--text3);margin-bottom:7px">Step-by-step log</div>
+        <div class="sabox" id="saLive">Run the optimizer to see steps here...</div>
+    </div>
+    <div class="card">
+        <div style="font-size:.65rem;color:var(--text3);margin-bottom:6px">Summary</div>
+        <div class="log" id="saLog"></div>
+    </div>
+</div>
+
+
+<div id="tab-results" class="panel">
+    <h2 class="sec">Optimization Results</h2>
+    <div id="resultsContent">
+        <div style="color:var(--text3);font-size:.77rem">Run the optimizer first, results will show up here.</div>
+    </div>
+</div>
+
+
+<script>
+    const API = 'http://localhost:8080';
+
+    // ---- state ----
+    let P = { w:[0,0,0], theta:0, trained:false };
+    let lossH = [], accH = [], wgtH = [];
+    let PLANTS = [];
+    let pendX = 100, pendY = 100;
+    let saResult = null;
+
+    // ---- helpers ----
+    const pColor = t => t==0?'#84cc16':t==1?'#f472b6':'#34d399';
+    const pEmoji = t => t==0?'🌵':t==1?'🌸':'🌿';
+    const pName  = t => t==0?'Cactus':t==1?'Flower':'Herb';
+    const pBadge = t => t==0?'bc':t==1?'bf':'bh';
+
+    // ---- perceptron ----
+    function trainPerceptron() {
+      const alpha     = parseFloat(document.getElementById('lr').value);
+      const maxEpochs = parseInt(document.getElementById('epochs').value);
+      const split     = parseFloat(document.getElementById('splitR').value);
+
+      const logEl = document.getElementById('trainLog');
+      logEl.innerHTML = '';
+      lossH=[]; accH=[]; wgtH=[];
+      const log = (msg, cls='li') => {
+        logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+      };
+
+      let epochCount = 0;
+      const trainN = Math.floor(100 * split);
+
+      const es = new EventSource(`${API}/train-stream?alpha=${alpha}&epochs=${maxEpochs}&split=${split}`);
+
+      es.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+
+        if(d.error) { log(d.error, 'le'); es.close(); return; }
+
+        if(d.done) {
+          es.close();
+          P = { w:[d.w1,d.w2,d.w3], theta:d.theta, trained:true };
+          log(`Test acc: ${(d.testAcc*100).toFixed(1)}%`, 'lw');
+          log(`Final W=[${[d.w1,d.w2,d.w3].map(v=>v.toFixed(4)).join(', ')}]  θ=${d.theta.toFixed(4)}`, 'lw');
+          setWBars(P.w, P.theta);
+          const trainAcc = accH.length ? accH[accH.length-1] : 0;
+          document.getElementById('epochLbl').textContent = `Done — ${epochCount} epoch(s)`;
+          document.getElementById('trainStats').innerHTML =
+            `<div class="sbox"><div class="v">${(trainAcc*100).toFixed(0)}%</div><div class="l">Train Acc</div></div>
+             <div class="sbox"><div class="v">${(d.testAcc*100).toFixed(0)}%</div><div class="l">Test Acc</div></div>
+             <div class="sbox"><div class="v">${epochCount}</div><div class="l">Epochs</div></div>`;
+          updateAllPred();
+          return;
+        }
+
+        // live epoch update
+        epochCount = d.epoch;
+        if(d.epoch === 0) {
+          log(`Init W=[${[d.w1,d.w2,d.w3].map(v=>v.toFixed(4)).join(', ')}]  θ=${d.theta.toFixed(4)}`, 'lw');
+          return;
+        }
+
+        lossH.push(d.errors / trainN);
+        accH.push(d.acc);
+        wgtH.push([d.w1, d.w2, d.w3]);
+
+        log(`Epoch ${d.epoch}: errors=${d.errors}  acc=${(d.acc*100).toFixed(1)}%  W=[${[d.w1,d.w2,d.w3].map(v=>v.toFixed(3)).join(',')}]`);
+        document.getElementById('epochLbl').textContent = `Epoch ${d.epoch}  |  errors=${d.errors}  |  acc=${(d.acc*100).toFixed(1)}%`;
+        setWBars([d.w1,d.w2,d.w3], d.theta);
+        drawLossChart();
+        drawWgtChart();
+      };
+
+      es.onerror = () => { log('Connection error — is Main.java running?', 'le'); es.close(); };
+    }
+
+    function testPerceptron() {
+      if(!P.trained) { alert('Train the perceptron first!'); return; }
+
+      // compute X in the frontend using the weights we already have
+      const x1 = parseFloat(document.getElementById('tM').value) / 100;
+      const x2 = parseFloat(document.getElementById('tL').value) / 48;
+      const x3 = parseFloat(document.getElementById('tP').value) / 2;
+
+      const X    = x1*P.w[0] + x2*P.w[1] + x3*P.w[2] - P.theta;
+      const pred = X >= 0 ? 1 : 0;
+
+      const el = document.getElementById('predR');
+      el.style.display = 'block';
+      el.className = 'predr ' + (pred ? 'yes' : 'no');
+      el.innerHTML = `X = ${X.toFixed(6)} &nbsp;→&nbsp; ${pred===1
+        ? '💧 <strong>NEEDS WATER</strong>'
+        : '✓ <strong>NO WATER NEEDED</strong>'}`;
+    }
+
+    function setWBars(w, theta) {
+      const all = [...w, theta];
+      const maxAbs = Math.max(...all.map(Math.abs), 0.1);
+      function applyBar(elId, v) {
+        const el = document.getElementById(elId);
+        const pct = (Math.abs(v) / maxAbs) * 48;
+        el.style.width = pct + '%';
+        el.style.left  = v >= 0 ? '50%' : (50 - pct) + '%';
+      }
+      [0,1,2].forEach(i => {
+        applyBar('wb'+(i+1), w[i]);
+        document.getElementById('wv'+(i+1)).textContent = w[i].toFixed(4);
+      });
+      applyBar('wb4', theta);
+      document.getElementById('wv4').textContent = theta.toFixed(4);
+    }
+
+    // ---- SA ----
+    function runSA() {
+      if(PLANTS.length < 2)  { alert('Add at least 2 plants!'); return; }
+      if(!P.trained)          { alert('Train the perceptron first!'); return; }
+
+      const T0       = parseFloat(document.getElementById('saT').value);
+      const alpha    = parseFloat(document.getElementById('saC').value);
+      const maxIter  = parseInt(document.getElementById('saI').value);
+      const nWater   = Math.min(parseInt(document.getElementById('nWater').value)||3, PLANTS.length);
+      const cv       = document.getElementById('gardenCanvas');
+
+      const logEl  = document.getElementById('saLog');
+      const liveEl = document.getElementById('saLive');
+      logEl.innerHTML = ''; liveEl.innerHTML = '';
+      const costH = [];
+
+      const log = (msg, cls='li') => {
+        logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+      };
+      const live = (msg, cls='') => {
+        const d = document.createElement('div');
+        d.className = 'sl ' + cls; d.textContent = msg;
+        liveEl.appendChild(d);
+        while(liveEl.children.length > 200) liveEl.removeChild(liveEl.firstChild);
+        liveEl.scrollTop = liveEl.scrollHeight;
+      };
+
+      // SSE uses GET, so send plant data as a query param (base64 encoded)
+      const bodyObj = {
+        plants: PLANTS.map(p => ({
+          name: p.name, x: p.x, y: p.y,
+          moisture: p.moisture, lastWatered: p.lastWatered, plantType: p.plantType
+        })),
+        numToWater: nWater, T0, alpha, maxIter,
+        canvasW: cv.width, canvasH: cv.height
+      };
+
+      // SA stream uses POST via fetch with ReadableStream (SSE over POST)
+      // We read the stream manually since EventSource only supports GET
+      fetch(`${API}/sa-stream`, {
+        method: 'POST',
+        body: JSON.stringify(bodyObj)
+      }).then(res => {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        function read() {
+          reader.read().then(({ done, value }) => {
+            if(done) return;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n\n');
+            buf = lines.pop(); // keep incomplete chunk
+            lines.forEach(chunk => {
+              const line = chunk.replace('data: ','').trim();
+              if(!line) return;
+              try {
+                const d = JSON.parse(line);
+                if(d.error) { log(d.error, 'le'); return; }
+
+                if(d.done) {
+                  PLANTS.forEach((p,i) => p.pred = d.predictions[i]);
+                  renderPlantList();
+                  saResult = { order: d.best, costH };
+                  drawSAChart(costH);
+                  const inO = new Set(d.best);
+                  const mc  = PLANTS.filter(p=>p.pred===1 && !inO.has(p.id)).length;
+                  const ec  = PLANTS.filter(p=>p.pred===0 &&  inO.has(p.id)).length;
+                  let td=0;
+                  for(let i=0;i<d.best.length-1;i++){
+                    const a=PLANTS[d.best[i]],b=PLANTS[d.best[i+1]];
+                    td+=Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
+                  }
+                  document.getElementById('saStats').innerHTML =
+                    `<div class="sbox"><div class="v">${mc}</div><div class="l">Missed</div></div>
+                     <div class="sbox"><div class="v">${ec}</div><div class="l">Extra</div></div>
+                     <div class="sbox"><div class="v">${td.toFixed(0)}</div><div class="l">Distance</div></div>`;
+                  live(`✓ Done  best=[${d.best.map(i=>PLANTS[i].name).join('→')}]  cost=${d.bestCost.toFixed(2)}`, 'imp');
+                  log(`Order: [${d.best.map(i=>PLANTS[i].name).join(' → ')}]  cost=${d.bestCost.toFixed(4)}`, 'lw');
+                  drawGarden();
+                  renderResults();
+                  return;
+                }
+
+                // live step
+                costH.push(d.cost);
+                drawSAChart(costH);
+                const names = d.order.map(i => PLANTS[i] ? PLANTS[i].name : i).join('→');
+                const cls   = d.type==='improved'?'imp':d.type==='prob-accept'?'prb':'rej';
+                const pfx   = d.type==='improved'?'✓':d.type==='prob-accept'?'⚡':'✗';
+                live(`iter ${d.iter}  [${names}]  cost=${d.cost.toFixed(2)}  T=${d.T.toFixed(2)}  ${pfx} ${d.type}`, cls);
+              } catch(err) {}
+            });
+            read();
+          });
+        }
+        read();
+      }).catch(() => log('Connection error — is Main.java running?', 'le'));
+    }
+
+    // ---- garden ----
+    function initCanvas() {
+      const cv = document.getElementById('gardenCanvas');
+      cv.width = cv.offsetWidth || 560;
+      cv.onclick = function(e) {
+        const r = this.getBoundingClientRect();
+        pendX = Math.round((e.clientX-r.left)*(this.width/r.width));
+        pendY = Math.round((e.clientY-r.top)*(this.height/r.height));
+        document.getElementById('pX').value = pendX;
+        document.getElementById('pY').value = pendY;
+        drawGarden();
+      };
+      drawGarden();
+    }
+
+    async function getPred(p) {
+      if(!P.trained) return -1;
+      try {
+        const res  = await fetch(`${API}/predict?moisture=${p.moisture}&lastWatered=${p.lastWatered}&plantType=${p.plantType}`);
+        const data = await res.json();
+        return data.prediction;
+      } catch { return -1; }
+    }
+
+    function addPlant() {
+      const id = PLANTS.length;
+      const pt = parseInt(document.getElementById('pT').value);
+      const autoName = pName(pt) + ' ' + (PLANTS.filter(p=>p.plantType===pt).length + 1);
+      PLANTS.push({
+        id, name: autoName,
+        x: parseInt(document.getElementById('pX').value),
+        y: parseInt(document.getElementById('pY').value),
+        moisture:    parseInt(document.getElementById('pM').value),
+        lastWatered: parseInt(document.getElementById('pL').value),
+        plantType:   parseInt(document.getElementById('pT').value),
+        pred: -1
+      });
+      document.getElementById('nWater').max = PLANTS.length;
+      updateAllPred();
+      drawGarden();
+    }
+
+    function removePlant(idx) {
+      PLANTS.splice(idx, 1);
+      PLANTS.forEach((p,i) => p.id=i);
+      renderPlantList(); drawGarden();
+    }
+
+    async function updateAllPred() {
+      for(const p of PLANTS) p.pred = await getPred(p);
+      renderPlantList(); drawGarden();
+    }
+
+    function renderPlantList() {
+      document.getElementById('pCount').textContent = PLANTS.length;
+      document.getElementById('nWater').max = PLANTS.length;
+      document.getElementById('plantList').innerHTML = PLANTS.map((p,i) => `
+        <tr>
+          <td>${p.name}</td>
+          <td><span class="badge ${pBadge(p.plantType)}">${pEmoji(p.plantType)} ${pName(p.plantType)}</span></td>
+          <td>${p.moisture}%</td>
+          <td>${p.pred<0?'<span style="color:var(--text3)">—</span>':
+               p.pred===1?'<span class="badge bw">💧 Yes</span>':
+                          '<span class="badge bnw">✓ No</span>'}</td>
+          <td><button class="del" style="padding:3px 8px;font-size:.57rem" onclick="removePlant(${i})">✕</button></td>
+        </tr>`).join('');
+    }
+
+    function drawGarden() {
+      const cv = document.getElementById('gardenCanvas');
+      if(!cv || !cv.width) return;
+      const ctx = cv.getContext('2d');
+      const W=cv.width, H=cv.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle='#0d1f0f'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#1a3320';
+      for(let x=20;x<W;x+=40) for(let y=20;y<H;y+=40) {
+        ctx.beginPath(); ctx.arc(x,y,1,0,Math.PI*2); ctx.fill();
+      }
+      if(saResult && saResult.order) {
+        const ord = saResult.order;
+        ctx.strokeStyle='rgba(74,222,128,0.4)'; ctx.lineWidth=1.5; ctx.setLineDash([5,5]);
+        ctx.beginPath();
+        ord.forEach((pid,i) => { const p=PLANTS[pid]; if(!p) return; i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); });
+        ctx.stroke(); ctx.setLineDash([]);
+        ord.forEach((pid,si) => {
+          const p=PLANTS[pid]; if(!p) return;
+          ctx.fillStyle='#4ade80'; ctx.font='bold 10px Space Mono'; ctx.textAlign='center';
+          ctx.fillText(si+1, p.x, p.y-22);
+        });
+      }
+      ctx.strokeStyle='rgba(74,222,128,0.28)'; ctx.lineWidth=1; ctx.setLineDash([3,5]);
+      ctx.beginPath(); ctx.arc(pendX,pendY,12,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle='rgba(74,222,128,0.08)';
+      ctx.beginPath(); ctx.arc(pendX,pendY,12,0,Math.PI*2); ctx.fill();
+      PLANTS.forEach(p => {
+        const nw = p.pred===1;
+        if(nw) { ctx.shadowColor='#4ade80'; ctx.shadowBlur=13; }
+        ctx.fillStyle = pColor(p.plantType);
+        ctx.beginPath(); ctx.arc(p.x,p.y,10,0,Math.PI*2); ctx.fill();
+        ctx.shadowBlur=0;
+        ctx.strokeStyle = nw?'#4ade80':p.pred<0?'#6b7280':'#374151';
+        ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(p.x,p.y,10,0,Math.PI*2); ctx.stroke();
+        if(nw) { ctx.fillStyle='#4ade80'; ctx.font='10px serif'; ctx.textAlign='center'; ctx.fillText('💧', p.x+11, p.y-9); }
+        ctx.fillStyle='#dcfce7'; ctx.font='9px Space Mono'; ctx.textAlign='center';
+        ctx.fillText(p.name.length>12?p.name.slice(0,11)+'…':p.name, p.x, p.y+23);
+      });
+    }
+
+    function clearGarden() { PLANTS=[]; renderPlantList(); drawGarden(); saResult=null; }
+
+    function loadSample() {
+      PLANTS = []; saResult = null;
+      PLANTS = [
+        {id:0,name:'Rose',    x:110,y:90, moisture:16,lastWatered:44,plantType:1,pred:-1},
+        {id:1,name:'Basil',   x:220,y:130,moisture:13,lastWatered:40,plantType:2,pred:-1},
+        {id:2,name:'Mint',    x:150,y:210,moisture:18,lastWatered:38,plantType:2,pred:-1},
+        {id:3,name:'Lavender',x:440,y:310,moisture:21,lastWatered:42,plantType:1,pred:-1},
+        {id:4,name:'Cactus A',x:360,y:80, moisture:80,lastWatered:3, plantType:0,pred:-1},
+        {id:5,name:'Cactus B',x:460,y:170,moisture:76,lastWatered:5, plantType:0,pred:-1},
+        {id:6,name:'Aloe',    x:300,y:260,moisture:68,lastWatered:9, plantType:2,pred:-1},
+        {id:7,name:'Sage',    x:80, y:320,moisture:63,lastWatered:11,plantType:2,pred:-1},
+      ];
+      document.getElementById('nWater').max   = 8;
+      document.getElementById('nWater').value = 3;
+      updateAllPred();
+      drawGarden();
+    }
+
+    function drawSAChart(costH) {
+      const cv = document.getElementById('saChart');
+      if(!cv) return;
+      cv.width = cv.offsetWidth || 400;
+      const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+      ctx.fillStyle = '#0d1f0f'; ctx.fillRect(0,0,W,H);
+      const pad = {l:42,r:8,t:9,b:24};
+      const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+      const n = costH.length; if(!n) return;
+      const mx = Math.max(...costH), mn = Math.min(...costH), rng = mx-mn||1;
+      ctx.strokeStyle = '#1a3320'; ctx.lineWidth = 1; ctx.setLineDash([2,4]);
+      for(let i=0;i<=4;i++){
+        const y = pad.t+ch*(i/4);
+        ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+        ctx.fillStyle = '#4a7a50'; ctx.font = '8px Space Mono'; ctx.textAlign = 'right';
+        ctx.fillText((mx-rng*(i/4)).toFixed(2), pad.l-3, y+3);
+      }
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 2;
+      costH.forEach((v,i) => {
+        const x = pad.l+(i/(n-1||1))*cw, y = pad.t+(1-(v-mn)/rng)*ch;
+        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      }); ctx.stroke();
+      ctx.lineTo(pad.l+cw,pad.t+ch); ctx.lineTo(pad.l,pad.t+ch); ctx.closePath();
+      ctx.fillStyle = 'rgba(74,222,128,.06)'; ctx.fill();
+      ctx.fillStyle = '#4a7a50'; ctx.textAlign = 'center';
+      ctx.fillText('Iterations', pad.l+cw/2, H-3);
+    }
+
+    // ---- results ----
+    function renderResults() {
+      if(!saResult) return;
+      const { order } = saResult;
+      const inO    = new Set(order);
+      const missed = PLANTS.filter(p => p.pred===1 && !inO.has(p.id));
+      const extra  = PLANTS.filter(p => p.pred===0 &&  inO.has(p.id));
+      let td = 0;
+      for(let i=0; i<order.length-1; i++) {
+        const a=PLANTS[order[i]], b=PLANTS[order[i+1]];
+        td += Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
+      }
+      let html = `
+        <div class="srow">
+          <div class="sbox"><div class="v">${order.length}</div><div class="l">Watered</div></div>
+          <div class="sbox"><div class="v">${missed.length}</div><div class="l">Missed</div></div>
+          <div class="sbox"><div class="v">${td.toFixed(0)}</div><div class="l">Distance</div></div>
+          <div class="sbox"><div class="v">${extra.length}</div><div class="l">Extra</div></div>
+        </div>
+        <div class="card">
+          <div class="sec" style="font-size:.87rem">💧 Optimal Watering Sequence</div>
+          <div class="worder">
+            ${order.map((pid,i) => {
+              const p = PLANTS[pid];
+              return `<div class="ochip"><span class="n">${i+1}</span>${pEmoji(p.plantType)} ${p.name}</div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      if(missed.length) html += `<div class="card"><div style="color:var(--accent4);font-size:.71rem;margin-bottom:6px">⚠ Missed:</div>${missed.map(p=>`<span class="badge bw" style="margin:3px">${p.name}</span>`).join(' ')}</div>`;
+      if(extra.length)  html += `<div class="card"><div style="color:var(--accent3);font-size:.71rem;margin-bottom:6px">ℹ Extra watered:</div>${extra.map(p=>`<span class="badge bnw" style="margin:3px">${p.name}</span>`).join(' ')}</div>`;
+      html += `<div class="card"><table>
+        <tr><td>Cost formula</td><td style="color:var(--accent2)">missed + distance + extra</td></tr>
+        <tr><td>Perceptron W</td><td style="color:var(--accent2)">[${P.w.map(v=>v.toFixed(4)).join(', ')}]  θ=${P.theta.toFixed(4)}</td></tr>
+      </table></div>`;
+      document.getElementById('resultsContent').innerHTML = html;
+      switchTab('results');
+    }
+
+    // ---- charts ----
+    function drawLossChart() {
+      const cv=document.getElementById('lossChart'); cv.width=cv.offsetWidth||400;
+      const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+      ctx.fillStyle='#0d1f0f'; ctx.fillRect(0,0,W,H);
+      const pad={l:34,r:8,t:9,b:24}, cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+      const n=lossH.length; if(!n) return;
+      ctx.strokeStyle='#1a3320'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
+      for(let i=0;i<=4;i++){const y=pad.t+ch*(i/4);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();}
+      ctx.setLineDash([]);
+      const plot=(d,c)=>{ const mx=Math.max(...d)||1; ctx.beginPath();ctx.strokeStyle=c;ctx.lineWidth=2; d.forEach((v,i)=>{const x=pad.l+(i/(n-1||1))*cw,y=pad.t+(1-v/mx)*ch;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}); ctx.stroke(); };
+      plot(lossH,'#f87171'); plot(accH,'#4ade80');
+      ctx.fillStyle='#86efac';ctx.font='8px Space Mono';ctx.textAlign='right';ctx.fillText('acc',pad.l+cw,pad.t+ch-10);
+      ctx.fillStyle='#f87171';ctx.fillText('loss',pad.l+cw,pad.t+ch-1);
+      ctx.fillStyle='#4a7a50';ctx.textAlign='center';ctx.fillText('Epochs',pad.l+cw/2,H-3);
+    }
+
+    function drawWgtChart() {
+      const cv=document.getElementById('wgtChart'); cv.width=cv.offsetWidth||400;
+      const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+      ctx.fillStyle='#0d1f0f'; ctx.fillRect(0,0,W,H);
+      const pad={l:34,r:8,t:9,b:24}, cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+      const n=wgtH.length; if(!n) return;
+      const allV=wgtH.flat(), mx=Math.max(...allV.map(Math.abs))||1;
+      const cols=['#4ade80','#fbbf24','#34d399'], lbls=['W₁','W₂','W₃'];
+      cols.forEach((c,k)=>{
+        ctx.beginPath();ctx.strokeStyle=c;ctx.lineWidth=1.5;
+        wgtH.forEach((s,i)=>{ const x=pad.l+(i/(n-1||1))*cw,y=pad.t+ch*(0.5-s[k]/(mx*2+.001)); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.stroke();
+      });
+      cols.forEach((c,k)=>{ ctx.fillStyle=c;ctx.font='8px Space Mono';ctx.textAlign='right'; ctx.fillText(lbls[k],pad.l+cw-(2-k)*32,pad.t+11); });
+      ctx.strokeStyle='#2a5530';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+      const zy=pad.t+ch*.5; ctx.beginPath();ctx.moveTo(pad.l,zy);ctx.lineTo(pad.l+cw,zy);ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle='#4a7a50';ctx.textAlign='center';ctx.fillText('Epochs',pad.l+cw/2,H-3);
+    }
+
+    // ---- tab routing & boot ----
+    function switchTab(name) {
+      const names = ['data','perceptron','garden','optimizer','results'];
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-'+name).classList.add('active');
+      document.querySelectorAll('.tab')[names.indexOf(name)].classList.add('active');
+      if(name==='garden') setTimeout(()=>{ initCanvas(); drawGarden(); }, 50);
+    }
+
+    (function boot() {
+      const DATASET = [
+        [21,8,2,1],[26,13,0,0],[57,25,1,0],[23,47,0,1],[14,42,0,1],
+        [35,34,2,1],[54,5,0,0],[13,6,0,1],[25,1,2,1],[73,30,1,0],
+        [50,5,0,0],[14,23,2,1],[67,12,2,0],[64,40,2,1],[18,34,1,1],
+        [45,39,1,1],[46,19,0,0],[14,15,0,1],[39,37,2,1],[64,30,1,0],
+        [13,37,0,1],[31,27,1,1],[26,34,1,1],[26,18,2,1],[23,24,1,1],
+        [43,31,2,1],[43,29,1,0],[63,45,1,1],[41,13,2,0],[25,25,1,1],
+        [75,38,1,1],[26,35,1,1],[76,10,2,0],[74,42,1,1],[15,44,1,1],
+        [24,19,0,0],[38,40,2,1],[49,1,1,0],[61,8,1,0],[23,36,0,0],
+        [79,48,1,1],[63,48,2,1],[72,34,0,0],[43,48,1,1],[55,15,2,0],
+        [69,36,1,0],[49,22,1,0],[35,12,1,1],[23,37,2,1],[57,24,2,0],
+        [40,41,2,1],[20,16,0,0],[25,17,0,0],[51,39,0,0],[28,21,1,1],
+        [45,0,0,0],[38,43,2,1],[22,4,0,0],[36,16,1,1],[59,39,0,0],
+        [17,16,0,1],[79,38,0,0],[12,10,2,1],[54,44,2,1],[43,11,1,0],
+        [79,3,0,0],[77,10,2,0],[57,4,2,0],[42,6,1,0],[27,41,0,1],
+        [27,16,1,1],[21,40,1,1],[15,44,2,1],[30,1,2,1],[15,32,1,1],
+        [55,26,2,0],[37,20,2,0],[42,42,1,1],[18,16,1,1],[35,35,0,0],
+        [27,5,2,1],[10,48,0,1],[24,33,1,1],[79,42,0,1],[57,27,1,0],
+        [27,48,0,1],[43,4,0,0],[48,3,0,0],[61,32,2,1],[61,34,2,1],
+        [28,21,1,1],[20,42,1,1],[24,9,0,0],[62,27,0,0],[36,42,2,1],
+        [42,38,1,1],[70,17,2,0],[10,21,1,1],[38,12,2,0],[33,28,2,1]
+      ];
+      document.getElementById('dataBody').innerHTML = DATASET.map((r,i) => `
+        <tr>
+          <td style="color:var(--text3)">${i+1}</td>
+          <td>${r[0]}</td><td>${r[1]}</td>
+          <td><span class="badge ${pBadge(r[2])}">${pEmoji(r[2])} ${pName(r[2])}</span></td>
+          <td>${r[3]===1?'<span class="badge bw">💧 Yes</span>':'<span class="badge bnw">✓ No</span>'}</td>
+        </tr>`).join('');
+      const nw = DATASET.filter(r=>r[3]===1).length;
+      document.getElementById('dataStats').innerHTML =
+        `<div class="sbox"><div class="v">${DATASET.length}</div><div class="l">Samples</div></div>
+         <div class="sbox"><div class="v">${nw}</div><div class="l">Need Water</div></div>
+         <div class="sbox"><div class="v">${DATASET.filter(r=>r[2]===0).length}</div><div class="l">Cacti</div></div>
+         <div class="sbox"><div class="v">${DATASET.filter(r=>r[2]===1).length}</div><div class="l">Flowers</div></div>
+         <div class="sbox"><div class="v">${DATASET.filter(r=>r[2]===2).length}</div><div class="l">Herbs</div></div>`;
+      setTimeout(() => {
+        ['lossChart','wgtChart'].forEach(id => {
+          const cv = document.getElementById(id); cv.width = cv.offsetWidth||400;
+          const ctx = cv.getContext('2d');
+          ctx.fillStyle='#0d1f0f'; ctx.fillRect(0,0,cv.width,cv.height);
+          ctx.fillStyle='#2a5530'; ctx.font='10px Space Mono'; ctx.textAlign='center';
+          ctx.fillText('Train perceptron to see chart', cv.width/2, cv.height/2);
+        });
+      }, 120);
+    })();
+</script>
+</body>
+</html>
